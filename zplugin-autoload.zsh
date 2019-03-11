@@ -1278,28 +1278,19 @@ ZPLGM[EXTENDED_GLOB]=""
             fi
         else
             ( builtin cd -q "$local_dir" || return 1
-              integer had_output=0
               local IFS=$'\n'
-              command git fetch --quiet && \
-                command git log --color --date=short --pretty=format:'%Cgreen%cd %h %Creset%s %Cred%d%Creset' ..FETCH_HEAD | \
-                while read line; do
-                  [[ -n "${line%%[[:space:]]##}" && $had_output -eq 0 ]] && {
-                      had_output=1
-                      [[ "${ICE_OPTS[opt_-q,--quiet]}" = 1 ]] && {
-                          -zplg-any-colorify-as-uspl2 "$id_as"
-                          print "\r\nUpdating plugin $REPLY"
-                      }
+              command git fetch --quiet && {
+                local -a log
+                log=("${(@f)"$(command git log --color --date=short --pretty=format:'%Cgreen%cd %h %Creset%s %Cred%d%Creset' ..FETCH_HEAD)"}")
+                (( ${#${(@)log:#[[:space:]]##}} )) && [[ "${ICE_OPTS[opt_-q,--quiet]}" = 1 ]] && {
+                      -zplg-any-colorify-as-uspl2 "$id_as"
+                      print "\r\nUpdating plugin $REPLY"
                   }
-                  echo $line
-                done | \
-                command tee .zplugin_lstupd | \
-                command less -FRXi &
+                command less -FRXi <<< ${(F)log} &
                 integer less_pid=$!
                 { sleep 20 && kill -9 $less_pid 2>/dev/null 1>&2; } &!
                 wait $less_pid
-
-              local -a log
-              { log=( ${(@f)"$(<$local_dir/.zplugin_lstupd)"} ); } 2>/dev/null
+              }
               [[ ${#log} -gt 0 ]] && {
                   [[ ${+ice[atpull]} = 1 && ${ice[atpull]} = "!"* ]] && ( builtin cd -q "$local_dir" && -zplg-at-eval "${ice[atpull]#\!}" ${ice[atclone]}; )
                   command git pull --no-stat
